@@ -166,7 +166,7 @@ export default function S0ReviewPage() {
     setSelected(allSelected ? new Set() : new Set(tours.map((t) => t.id)));
   }
   function toggleOne(id: string) {
-    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected((prev) => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
   }
 
   // ── inline edit ───────────────────────────────────────────────────────────
