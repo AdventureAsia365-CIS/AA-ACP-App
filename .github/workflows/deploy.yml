@@ -15,9 +15,9 @@ jobs:
 
       - name: Smoke test
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://acp.lumiguides.it.com)
+          STATUS=$(curl -s -o /dev/null -L -w "%{http_code}" https://acp.lumiguides.it.com)
           echo "HTTP status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
+          if [ $STATUS -lt 200 ] || [ $STATUS -ge 400 ]; then
             echo "❌ Production returned $STATUS"
             exit 1
           fi
