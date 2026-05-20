@@ -57,3 +57,9 @@ ACP M2 sprint — UI tasks:
 - AA-45: S3 Gate 2 HITL review page ✅ (develop, CI #20 green)
 - AA-89: B2B self-approval — migration 021 (Session 23 P0)
 - AA-90: S1 Trigger page (/workspace/s1/run) ← NEXT after AA-89
+
+## Git Rules — NON-NEGOTIABLE
+- ALWAYS work on branch: develop (never main directly)
+- Commit to develop only
+- DO NOT merge to main — human does that manually after CI green
+- Before starting: git checkout develop && git pull origin develop
