@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/workspace/s0/review", label: "S0 Review" },
+  { href: "/workspace/s1/run", label: "S1 Rewrite" },
 ];
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
