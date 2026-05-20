@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 const API_BASE =
@@ -239,7 +239,7 @@ function CampaignAccordion({ campaigns }: { campaigns: Campaign[] }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function S3ReviewPage() {
+function S3ReviewContent() {
   const searchParams = useSearchParams();
 
   const [token, setToken] = useState<string | null>(null);
@@ -699,5 +699,13 @@ export default function S3ReviewPage() {
 
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
     </div>
+  );
+}
+
+export default function S3ReviewPage() {
+  return (
+    <Suspense fallback={<div>Loading…</div>}>
+      <S3ReviewContent />
+    </Suspense>
   );
 }
