@@ -14,10 +14,10 @@ const NAV = [
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 shrink-0 bg-slate-900 text-white flex flex-col">
-        <div className="px-4 py-5 border-b border-slate-700">
-          <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Admin</span>
+    <div className="flex min-h-screen bg-aa-offwhite">
+      <aside className="w-56 shrink-0 bg-aa-blackblue text-white flex flex-col">
+        <div className="px-4 py-5 border-b border-white/10">
+          <span className="text-xs font-bold tracking-widest text-white/40 uppercase">Admin</span>
           <p className="text-sm font-semibold text-white mt-0.5">Workspace</p>
         </div>
         <nav className="flex flex-col gap-1 p-3 flex-1">
@@ -26,7 +26,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             return (
               <Link key={href} href={href}
                 className={`px-3 py-2 rounded text-sm transition-colors ${
-                  active ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  active ? "bg-aa-orange text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {label}

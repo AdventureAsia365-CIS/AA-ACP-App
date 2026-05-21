@@ -3,21 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F8F6F2;
+  --foreground: #33363D;
+  --accent:     #DB9628;
+  --header:     #1F2933;
+
+  --font-fraunces:      'Fraunces', Georgia, serif;
+  --font-ibm-plex-sans: 'IBM Plex Sans', Arial, sans-serif;
+  --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-ibm-plex-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fraunces);
+    color: #1F2933;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn-aa-primary {
+    @apply bg-aa-orange text-white font-sans font-medium
+           px-5 py-2.5 rounded-md hover:bg-amber-600
+           transition-colors duration-150 text-sm tracking-wide;
+  }
+
+  .btn-aa-secondary {
+    @apply border border-aa-blackblue text-aa-blackblue font-sans font-medium
+           px-5 py-2.5 rounded-md hover:bg-aa-blackblue hover:text-white
+           transition-colors duration-150 text-sm;
+  }
+
+  .badge-pending   { @apply bg-amber-100  text-amber-800  text-xs font-medium px-2 py-0.5 rounded; }
+  .badge-approved  { @apply bg-green-100  text-green-800  text-xs font-medium px-2 py-0.5 rounded; }
+  .badge-rejected  { @apply bg-red-100    text-red-700    text-xs font-medium px-2 py-0.5 rounded; }
+  .badge-running   { @apply bg-blue-100   text-blue-800   text-xs font-medium px-2 py-0.5 rounded; }
+
+  .aa-card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm p-5;
+  }
+
+  .aa-sidebar {
+    @apply bg-aa-blackblue text-white min-h-screen w-56 flex-shrink-0;
+  }
 }
 
 @layer utilities {
