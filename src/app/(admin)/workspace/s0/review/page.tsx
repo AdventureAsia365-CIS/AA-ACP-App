@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { SLATimer } from "@/components/SLATimer";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
 
@@ -353,8 +354,15 @@ export default function S0ReviewPage() {
                   </td>
 
                   <td className="px-3 py-2.5 text-gray-600">{t.provider ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">
-                    {t.created_at ? t.created_at.slice(0, 10) : "—"}
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    {t.created_at ? (
+                      <>
+                        <div className="text-xs text-aa-gray mb-1">
+                          {new Date(t.created_at).toLocaleDateString("en-GB")}
+                        </div>
+                        <SLATimer createdAt={t.created_at} slaDurationHours={48} />
+                      </>
+                    ) : "—"}
                   </td>
                   <td className="px-3 py-2.5"><CoverageBadge pct={t.field_coverage_pct} /></td>
                   <td className="px-3 py-2.5"><StatusBadge status={t.review_status} /></td>
