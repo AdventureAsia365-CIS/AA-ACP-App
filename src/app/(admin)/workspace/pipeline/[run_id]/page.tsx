@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { SLATimer } from "@/components/SLATimer";
@@ -310,7 +310,7 @@ function deriveTimeline(run: AcpRun): NodeStatus[] {
     g3,                                              // Gate3
     done ? "done" : g3 === "done" ? "running" : "pending",  // S4
     done ? "done" : "pending",                       // CMS
-  ].map((s, i) => (failed && s === "running" ? "failed" : s) as NodeStatus);
+  ].map((s) => (failed && s === "running" ? "failed" : s) as NodeStatus);
 }
 
 function Timeline({ statuses }: { statuses: NodeStatus[] }) {
@@ -512,7 +512,7 @@ export default function PipelineRunPage() {
   const [runLoading, setRunLoading] = useState(true);
   const [ctxLoading, setCtxLoading] = useState(true);
   const [runErr, setRunErr] = useState<string | null>(null);
-  const [ctxErr, setCtxErr] = useState<string | null>(null);
+  const [, setCtxErr] = useState<string | null>(null);
 
   const fetchRun = useCallback(async () => {
     try {
