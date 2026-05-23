@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/workspace/pipeline", label: "Pipeline" },
-  { href: "/workspace/s0/review", label: "S0 Review" },
-  { href: "/workspace/s1/run", label: "S1 Rewrite" },
-  { href: "/workspace/s3/review", label: "S3 Campaign" },
-  { href: "/workspace/catalog", label: "Catalog" },
-  { href: "/workspace/brand", label: "Brand Brief" },
+  { href: "/workspace/pipeline",    label: "All Runs" },
+  { href: "/workspace/pipeline/s0", label: "S0 Upload" },
+  { href: "/workspace/pipeline/s1", label: "S1 Rewrite" },
+  { href: "/workspace/pipeline/s2", label: "S2 Research" },
+  { href: "/workspace/pipeline/s3", label: "S3 Campaign" },
+  { href: "/workspace/pipeline/s4", label: "S4 Publish" },
+  { href: "/workspace/s0/review",   label: "S0 Queue" },
+  { href: "/workspace/catalog",     label: "Catalog" },
+  { href: "/workspace/brand",       label: "Brand Brief" },
 ];
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
