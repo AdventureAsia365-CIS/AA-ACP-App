@@ -23,11 +23,11 @@ interface ApiResponse {
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_token");
+  return sessionStorage.getItem("acp_tenant_token");
 }
 
 function setToken(t: string) {
-  localStorage.setItem("acp_token", t);
+  sessionStorage.setItem("acp_tenant_token", t);
 }
 
 function authHeaders(): HeadersInit {
@@ -83,7 +83,7 @@ export default function CompetitorsPage() {
       const res = await fetch(`${API_BASE}/v1/competitors${qs}`, {
         headers: authHeaders(),
       });
-      if (res.status === 401) { setTokenState(null); localStorage.removeItem("acp_token"); return; }
+      if (res.status === 401) { setTokenState(null); sessionStorage.removeItem("acp_tenant_token"); return; }
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const json: ApiResponse = await res.json();
       setCompetitors(json.data);
@@ -214,7 +214,7 @@ export default function CompetitorsPage() {
         </div>
         <button
           className="text-sm text-gray-500 hover:text-gray-700"
-          onClick={() => { localStorage.removeItem("acp_token"); setTokenState(null); }}
+          onClick={() => { sessionStorage.removeItem("acp_tenant_token"); setTokenState(null); }}
         >
           Sign out
         </button>
