@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 
@@ -43,17 +44,6 @@ interface S1Run {
 type SseState = "connecting" | "connected" | "disconnected" | "complete";
 
 // ── auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : {};
-}
 
 // ── small components ──────────────────────────────────────────────────────────
 
@@ -110,8 +100,6 @@ export default function S1RunProgressPage({
   params: { run_id: string };
 }) {
   const runId = params.run_id;
-
-  const [token, setToken] = useState<string | null>(null);
   const [runInfo, setRunInfo] = useState<S1Run | null>(null);
   const [runInfoError, setRunInfoError] = useState("");
 
@@ -127,16 +115,12 @@ export default function S1RunProgressPage({
   // fallback poll timer ref
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    setToken(getToken());
-  }, []);
-
   // ── load run info ──────────────────────────────────────────────────────────
 
   const fetchRunInfo = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/acp/s1/runs`, {
-        headers: authHeaders(),
+        headers: adminHeaders(),
       });
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const json = await res.json();
@@ -175,7 +159,7 @@ export default function S1RunProgressPage({
       for (const tourId of tourOrder) {
         const res = await fetch(
           `${API_BASE}/acp/s1/tours/${tourId}/versions`,
-          { headers: authHeaders() }
+          { headers: adminHeaders() }
         );
         if (!res.ok) continue;
         const json = await res.json();
@@ -218,7 +202,6 @@ export default function S1RunProgressPage({
   // ── SSE connection ─────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!token) return;
     fetchRunInfo();
 
     let cancelled = false;
@@ -229,7 +212,7 @@ export default function S1RunProgressPage({
       try {
         const res = await fetch(
           `${API_BASE}/acp/s1/run/${runId}/stream`,
-          { headers: authHeaders(), signal: abort.signal }
+          { headers: adminHeaders(), signal: abort.signal }
         );
         if (!res.ok || !res.body) {
           if (!cancelled) setSseState("disconnected");
@@ -286,7 +269,7 @@ export default function S1RunProgressPage({
       cancelled = true;
       abort.abort();
     };
-  }, [token, runId, fetchRunInfo]);
+  }, [runId, fetchRunInfo]);
 
   // ── derived progress counts ────────────────────────────────────────────────
 
@@ -304,32 +287,6 @@ export default function S1RunProgressPage({
   const totalForBar = runInfo?.total_tours ?? totalTracked;
   const progressPct =
     totalForBar > 0 ? Math.round(((doneCount + failedCount) / totalForBar) * 100) : 0;
-
-  // ── auth gate ──────────────────────────────────────────────────────────────
-
-  if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm">
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">
-            Admin
-          </p>
-          <h1 className="text-lg font-semibold mb-4">S1 Run Progress</h1>
-          <p className="text-sm text-gray-500">
-            Session expired.{" "}
-            <a
-              href="/workspace/s1/run"
-              className="text-blue-600 hover:underline"
-            >
-              Return to S1 Rewrite
-            </a>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── render ────────────────────────────────────────────────────────────────
 
   const configDisplay = runInfo?.run_config;
 

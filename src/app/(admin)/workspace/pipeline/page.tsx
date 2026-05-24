@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 
@@ -30,17 +31,6 @@ interface AcpRun {
     gate2: GateSummaryItem | null;
     gate3: GateSummaryItem | null;
   };
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 }
 
 // ── Stage progress nodes ──────────────────────────────────────────────────────
@@ -173,7 +163,7 @@ export default function PipelinePage() {
     if (countryFilter.trim()) params.set("country", countryFilter.trim());
     params.set("limit", "50");
     try {
-      const res = await fetch(`${API_BASE}/v1/acp/runs?${params}`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/v1/acp/runs?${params}`, { headers: adminHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setRuns(await res.json());
       setError(null);

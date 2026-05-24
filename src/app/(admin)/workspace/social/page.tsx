@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback } from "react";
 
 const API_BASE =
@@ -20,20 +21,6 @@ interface SocialContent {
   hitl_gate_3_social_status: string | null;
   rewrite_attempt: number | null;
   created_at: string | null;
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -82,7 +69,7 @@ export default function SocialContentPage() {
       const params = new URLSearchParams({ tenant_id: "aa_internal" });
       if (statusFilter !== "All") params.set("validation_status", statusFilter);
       const res = await fetch(`${API_BASE}/v1/social?${params}`, {
-        headers: authHeaders(),
+        headers: adminHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: SocialContent[] = await res.json();

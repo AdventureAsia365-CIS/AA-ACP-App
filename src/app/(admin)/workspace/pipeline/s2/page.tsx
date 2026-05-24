@@ -3,21 +3,13 @@
 // GET /v1/acp/runs/{run_id}/context → S2 research output (market insights, competitor data)
 // GET /v1/acp/runs             → list runs to pick from
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-}
 
 interface RunListItem {
   run_id: string;
@@ -89,7 +81,7 @@ function S2Content({ runId }: { runId: string }) {
   useEffect(() => {
     if (!runId) return;
     setLoading(true);
-    fetch(`${API_BASE}/v1/acp/runs/${runId}/context`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/runs/${runId}/context`, { headers: adminHeaders() })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(setCtx)
       .catch(e => setError(String(e)))
@@ -304,7 +296,7 @@ function S2PageInner() {
   const [runId, setRunId] = useState(searchParams.get("run_id") || "");
 
   useEffect(() => {
-    fetch(`${API_BASE}/v1/acp/runs`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/runs`, { headers: adminHeaders() })
       .then(r => r.json())
       .then(d => setRuns(d.data || []))
       .catch(() => null);

@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -89,17 +90,6 @@ interface RunContext {
   };
   s3: { content_calendar: unknown; ads_plan: unknown; funnel_mix: unknown };
   s4: { blog_drafts: BlogDraftSummary[] };
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 }
 
 // ── JsonView ──────────────────────────────────────────────────────────────────
@@ -369,7 +359,7 @@ function GatePanel({
     try {
       const res = await fetch(`${API_BASE}/v1/acp/gate/${stageStr}/${action}`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ run_id: runId, notes: notes.trim() }),
       });
       if (!res.ok) {
@@ -516,7 +506,7 @@ export default function PipelineRunPage() {
 
   const fetchRun = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/v1/acp/runs/${run_id}`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/v1/acp/runs/${run_id}`, { headers: adminHeaders() });
       if (res.status === 404) throw new Error("Run not found");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setRun(await res.json());
@@ -530,7 +520,7 @@ export default function PipelineRunPage() {
 
   const fetchCtx = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/v1/acp/runs/${run_id}/context`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/v1/acp/runs/${run_id}/context`, { headers: adminHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setCtx(await res.json());
       setCtxErr(null);

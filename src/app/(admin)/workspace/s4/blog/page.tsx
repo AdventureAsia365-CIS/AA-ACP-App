@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
@@ -19,18 +20,6 @@ interface BlogDraft {
   rewrite_count: number | null;
   status: string | null;
   created_at: string | null;
-}
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
 }
 
 function scoreBadge(score: number | null): string {
@@ -65,7 +54,7 @@ export default function S4BlogListPage() {
       const params = new URLSearchParams({ tenant_id: "aa_internal" });
       if (hitlFilter !== "All") params.set("hitl_gate3_status", hitlFilter);
       const res = await fetch(`${API_BASE}/v1/acp/s4/blog/drafts?${params}`, {
-        headers: authHeaders(),
+        headers: adminHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDrafts(await res.json());

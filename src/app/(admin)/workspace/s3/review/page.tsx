@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders, clearAdminSecret } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -52,32 +53,6 @@ interface S3Run {
   validation_errors: string[];
   hitl_status: string | null;
   hitl_expires_at: string | null;
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function setStoredToken(t: string) {
-  localStorage.setItem("acp_admin_token", t);
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
-}
-async function loginWithKey(apiKey: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/auth/tenant-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey }),
-  });
-  if (!res.ok) throw new Error("Invalid API key");
-  const data = await res.json();
-  return data.access_token as string;
 }
 
 // ── Small components ──────────────────────────────────────────────────────────
@@ -242,10 +217,6 @@ function CampaignAccordion({ campaigns }: { campaigns: Campaign[] }) {
 function S3ReviewContent() {
   const searchParams = useSearchParams();
 
-  const [token, setToken] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [loginError, setLoginError] = useState("");
-
   const [runIdInput, setRunIdInput] = useState(searchParams.get("run_id") ?? "");
   const [run, setRun] = useState<S3Run | null>(null);
   const [loading, setLoading] = useState(false);
@@ -261,19 +232,15 @@ function S3ReviewContent() {
 
   const [toast, setToast] = useState("");
 
-  useEffect(() => {
-    setToken(getToken());
-  }, []);
-
   // Auto-load if run_id in URL
   useEffect(() => {
     const id = searchParams.get("run_id");
-    if (id && token) {
+    if (id) {
       setRunIdInput(id);
       loadRun(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, []);
 
   const loadRun = useCallback(
     async (id?: string) => {
@@ -284,13 +251,8 @@ function S3ReviewContent() {
       setRun(null);
       try {
         const res = await fetch(`${API_BASE}/v1/s3/runs/${rid}`, {
-          headers: authHeaders(),
+          headers: adminHeaders(),
         });
-        if (res.status === 401) {
-          setToken(null);
-          localStorage.removeItem("acp_admin_token");
-          return;
-        }
         if (res.status === 404) throw new Error(`Run ${rid} not found`);
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data: S3Run = await res.json();
@@ -305,50 +267,6 @@ function S3ReviewContent() {
   );
 
   // ── Login ──────────────────────────────────────────────────────────────────
-
-  if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm">
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">
-            Admin
-          </p>
-          <h1 className="text-lg font-semibold mb-4">S3 Campaign Review</h1>
-          {loginError && (
-            <p className="text-sm text-red-600 mb-3">{loginError}</p>
-          )}
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Admin API key"
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleLogin();
-            }}
-          />
-          <button
-            className="w-full bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700"
-            onClick={handleLogin}
-          >
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  async function handleLogin() {
-    setLoginError("");
-    try {
-      const jwt = await loginWithKey(apiKeyInput.trim());
-      setStoredToken(jwt);
-      setToken(jwt);
-    } catch {
-      setLoginError("Invalid API key");
-    }
-  }
-
   // ── HITL actions ──────────────────────────────────────────────────────────
 
   async function handleApprove() {
@@ -357,7 +275,7 @@ function S3ReviewContent() {
     try {
       const res = await fetch(
         `${API_BASE}/v1/hitl/gate2/${run.run_id}/approve`,
-        { method: "POST", headers: authHeaders() }
+        { method: "POST", headers: adminHeaders() }
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -385,7 +303,7 @@ function S3ReviewContent() {
         `${API_BASE}/v1/hitl/gate2/${run.run_id}/reject`,
         {
           method: "POST",
-          headers: authHeaders(),
+          headers: adminHeaders(),
           body: JSON.stringify({ notes: rejectNotes.trim() }),
         }
       );
@@ -426,10 +344,7 @@ function S3ReviewContent() {
           <Gate2Badge hitlStatus={run?.hitl_status ?? null} />
           <button
             className="text-sm text-gray-400 hover:text-gray-600"
-            onClick={() => {
-              localStorage.removeItem("acp_admin_token");
-              setToken(null);
-            }}
+            onClick={() => { clearAdminSecret(); window.location.href = "/login"; }}
           >
             Sign out
           </button>

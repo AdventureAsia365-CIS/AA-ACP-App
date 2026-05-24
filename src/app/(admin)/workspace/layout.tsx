@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { getAdminSecret } from "@/lib/admin-auth";
 
 const NAV = [
   { href: "/workspace/pipeline",    label: "All Runs" },
@@ -17,6 +19,14 @@ const NAV = [
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!getAdminSecret()) {
+      router.replace("/login");
+    }
+  }, [router]);
+
   return (
     <div className="flex min-h-screen bg-aa-offwhite">
       <aside className="w-56 shrink-0 bg-aa-blackblue text-white flex flex-col">

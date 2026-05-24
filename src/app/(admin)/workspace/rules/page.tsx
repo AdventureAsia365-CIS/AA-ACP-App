@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback } from "react";
 
 const API_BASE =
@@ -19,20 +20,6 @@ interface OutputRule {
   run_count: number;
   active: boolean;
   created_at: string | null;
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,7 +53,7 @@ export default function RulesDashboard() {
       const params = new URLSearchParams();
       if (stageFilter !== "All") params.set("stage", stageFilter);
       const res = await fetch(`${API_BASE}/v1/rules?${params}`, {
-        headers: authHeaders(),
+        headers: adminHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: OutputRule[] = await res.json();
@@ -87,7 +74,7 @@ export default function RulesDashboard() {
     try {
       const res = await fetch(`${API_BASE}/v1/rules/${rule_id}`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ active: !current }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

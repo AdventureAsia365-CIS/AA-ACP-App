@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 
@@ -32,16 +33,6 @@ interface BlogDraftFull {
   created_at: string | null;
 }
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-
-function authHeaders(extra: Record<string, string> = {}): HeadersInit {
-  const t = getToken();
-  return { ...(t ? { Authorization: `Bearer ${t}` } : {}), "Content-Type": "application/json", ...extra };
-}
-
 function ScorePill({ label, score, max = 10 }: { label: string; score: number | null; max?: number }) {
   if (score === null) return <div className="text-sm text-gray-400">{label}: —</div>;
   const pct = (score / max) * 100;
@@ -71,7 +62,7 @@ export default function BlogDraftDetailPage() {
   const fetchDraft = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/v1/acp/s4/blog/drafts/${id}`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/v1/acp/s4/blog/drafts/${id}`, { headers: adminHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDraft(await res.json());
     } catch (e: unknown) {
@@ -89,7 +80,7 @@ export default function BlogDraftDetailPage() {
     try {
       const res = await fetch(`${API_BASE}/v1/acp/s4/blog/drafts/${id}/hitl`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ status, reviewer_id: reviewerId, notes }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

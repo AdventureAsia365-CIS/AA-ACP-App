@@ -4,19 +4,11 @@
 // GET  /v1/pipeline/brand-identity → brand brief preview
 // POST /v1/pipeline/run         → parse Excel, trigger pipeline
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
 
 interface TourReview {
   id: string;
@@ -88,12 +80,12 @@ export default function S0Page() {
   const [error, setError] = useState("");
 
   const loadBrand = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/v1/pipeline/brand-identity`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE}/v1/pipeline/brand-identity`, { headers: adminHeaders() });
     if (res.ok) setBrand(await res.json());
   }, []);
 
   const loadReviews = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/v1/s0/review`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE}/v1/s0/review`, { headers: adminHeaders() });
     if (res.ok) {
       const d = await res.json();
       setReviews(d.tours || d.data || []);
@@ -125,7 +117,7 @@ export default function S0Page() {
       form.append("max_tours", "20");
       const res = await fetch(`${API_BASE}/v1/pipeline/run`, {
         method: "POST",
-        headers: authHeaders() as Record<string, string>,
+        headers: adminHeaders() as Record<string, string>,
         body: form,
       });
       if (!res.ok) {

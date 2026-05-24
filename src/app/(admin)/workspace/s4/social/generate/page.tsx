@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -13,16 +14,6 @@ interface Angle {
   why_it_works: string;
   length_signal: string;
   style_signal: string;
-}
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return { ...(t ? { Authorization: `Bearer ${t}` } : {}), "Content-Type": "application/json" };
 }
 
 const defaultBrief = {
@@ -56,7 +47,7 @@ function BriefForm({ onAngles }: { onAngles: (angles: Angle[], brief: typeof def
     try {
       const res = await fetch(`${API_BASE}/v1/acp/s4/social/angles`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({
           brief: {
             ...form,
@@ -166,7 +157,7 @@ function AngleSelector({
     try {
       const res = await fetch(`${API_BASE}/v1/acp/s4/social/write`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({
           brief: {
             ...brief,
