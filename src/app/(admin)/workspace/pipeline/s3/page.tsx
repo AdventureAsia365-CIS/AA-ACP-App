@@ -5,20 +5,12 @@
 // POST /v1/hitl/gate2/{run_id}/approve → Gate 2 approve
 // POST /v1/hitl/gate2/{run_id}/reject  → Gate 2 reject
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-}
 
 interface CalendarRow {
   week?: number;
@@ -96,7 +88,7 @@ function Gate2Panel({ run, onAction }: { run: S3Run; onAction: () => void }) {
     try {
       const res = await fetch(`${API_BASE}/v1/hitl/gate2/${run.run_id}/${action}`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ notes }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Failed");
@@ -168,7 +160,7 @@ function S3Content({ runId }: { runId: string }) {
 
   function load() {
     setLoading(true);
-    fetch(`${API_BASE}/v1/s3/runs/${runId}`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/s3/runs/${runId}`, { headers: adminHeaders() })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(setRun)
       .catch(e => setError(String(e)))
@@ -332,7 +324,7 @@ function S3PageInner() {
   const [runId, setRunId] = useState(searchParams.get("run_id") || "");
 
   useEffect(() => {
-    fetch(`${API_BASE}/v1/acp/runs`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/runs`, { headers: adminHeaders() })
       .then(r => r.json()).then(d => setRuns(d.data || [])).catch(() => null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

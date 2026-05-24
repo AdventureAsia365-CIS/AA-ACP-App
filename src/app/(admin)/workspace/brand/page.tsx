@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback, useRef } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
@@ -43,28 +44,6 @@ interface ParseResult {
 type PageState = "select" | "uploading" | "diff" | "confirming" | "done" | "error";
 
 // ── auth helpers ──────────────────────────────────────────────────────────────
-
-function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function setStoredToken(t: string) { localStorage.setItem("acp_admin_token", t); }
-
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
-
-async function loginWithKey(apiKey: string) {
-  const res = await fetch(`${API_BASE}/auth/tenant-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey }),
-  });
-  if (!res.ok) throw new Error("Invalid API key");
-  const data = await res.json();
-  return data.access_token as string;
-}
 
 // ── toast ─────────────────────────────────────────────────────────────────────
 
@@ -120,9 +99,6 @@ function truncate(s: string | null | undefined, n = 200): string {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function BrandBriefPage() {
-  const [token, setToken] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [loginError, setLoginError] = useState("");
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState("");
@@ -140,16 +116,13 @@ export default function BrandBriefPage() {
   const [uploadError, setUploadError] = useState("");
   const [toast, setToast] = useState("");
 
-  useEffect(() => { setToken(getToken()); }, []);
-
   // ── fetch tenants ─────────────────────────────────────────────────────────
 
   const fetchTenants = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/v1/admin/tenants`, {
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        headers: { ...adminHeaders(), "Content-Type": "application/json" },
       });
-      if (res.status === 401) { setToken(null); localStorage.removeItem("acp_admin_token"); return; }
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const json = await res.json();
       setTenants(json.data ?? []);
@@ -159,7 +132,7 @@ export default function BrandBriefPage() {
     }
   }, []);
 
-  useEffect(() => { if (token) fetchTenants(); }, [token, fetchTenants]);
+  useEffect(() => { fetchTenants(); }, [fetchTenants]);
 
   // ── fetch current brand rules ─────────────────────────────────────────────
 
@@ -168,7 +141,7 @@ export default function BrandBriefPage() {
     setNoCurrentRules(false);
     try {
       const res = await fetch(`${API_BASE}/v1/admin/tenants/${tenantId}/brand-rules`, {
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        headers: { ...adminHeaders(), "Content-Type": "application/json" },
       });
       if (res.status === 404) { setNoCurrentRules(true); return; }
       if (!res.ok) { setNoCurrentRules(true); return; }
@@ -180,40 +153,6 @@ export default function BrandBriefPage() {
   }
 
   // ── login ─────────────────────────────────────────────────────────────────
-
-  async function handleLogin() {
-    setLoginError("");
-    try {
-      const jwt = await loginWithKey(apiKeyInput.trim());
-      setStoredToken(jwt); setToken(jwt);
-    } catch { setLoginError("Invalid API key"); }
-  }
-
-  if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm">
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">Admin</p>
-          <h1 className="text-lg font-semibold mb-4">Brand Brief Upload</h1>
-          {loginError && <p className="text-sm text-red-600 mb-3">{loginError}</p>}
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Admin API key"
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
-          />
-          <button
-            className="w-full bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700"
-            onClick={handleLogin}
-          >
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ── file handling ─────────────────────────────────────────────────────────
 
@@ -243,7 +182,7 @@ export default function BrandBriefPage() {
         `${API_BASE}/v1/admin/tenants/${selectedTenant}/brand-brief`,
         {
           method: "POST",
-          headers: authHeaders(), // NO Content-Type — browser sets multipart boundary
+          headers: adminHeaders(), // NO Content-Type — browser sets multipart boundary
           body: form,
         }
       );

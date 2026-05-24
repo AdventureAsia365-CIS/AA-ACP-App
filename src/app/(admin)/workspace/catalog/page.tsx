@@ -1,5 +1,6 @@
 "use client";
 
+import { adminHeaders, clearAdminSecret } from "@/lib/admin-auth";
 import { useEffect, useState, useCallback } from "react";
 
 const API_BASE =
@@ -51,32 +52,6 @@ interface TourVersion {
   is_active: boolean;
   failure_codes: FailureCode[];
   created_at: string;
-}
-
-// ── auth ──────────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function setStoredToken(t: string) {
-  localStorage.setItem("acp_admin_token", t);
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t
-    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
-    : {};
-}
-async function loginWithKey(apiKey: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/auth/tenant-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey }),
-  });
-  if (!res.ok) throw new Error("Invalid API key");
-  const data = await res.json();
-  return data.access_token as string;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -352,7 +327,7 @@ function VersionsPanel({ tourId }: { tourId: string }) {
     try {
       const res = await fetch(
         `${API_BASE}/acp/s1/tours/${tourId}/versions`,
-        { headers: authHeaders() }
+        { headers: adminHeaders() }
       );
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const json = await res.json();
@@ -377,7 +352,7 @@ function VersionsPanel({ tourId }: { tourId: string }) {
     try {
       const res = await fetch(
         `${API_BASE}/acp/s1/versions/${versionId}/activate`,
-        { method: "PATCH", headers: authHeaders() }
+        { method: "PATCH", headers: adminHeaders() }
       );
       if (!res.ok) throw new Error(`API error ${res.status}`);
       await fetchVersions();
@@ -586,9 +561,6 @@ function TourRow({ tour }: { tour: CatalogTour }) {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function CatalogPage() {
-  const [token, setToken] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [loginError, setLoginError] = useState("");
 
   const [tours, setTours] = useState<CatalogTour[]>([]);
   const [loading, setLoading] = useState(false);
@@ -596,10 +568,6 @@ export default function CatalogPage() {
 
   const [filterCountry, setFilterCountry] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
-
-  useEffect(() => {
-    setToken(getToken());
-  }, []);
 
   const fetchTours = useCallback(async () => {
     setLoading(true);
@@ -609,13 +577,8 @@ export default function CatalogPage() {
       if (filterCountry) qs.set("country", filterCountry);
       if (filterSupplier) qs.set("supplier", filterSupplier);
       const res = await fetch(`${API_BASE}/acp/s1/tours?${qs}`, {
-        headers: authHeaders(),
+        headers: adminHeaders(),
       });
-      if (res.status === 401) {
-        setToken(null);
-        localStorage.removeItem("acp_admin_token");
-        return;
-      }
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const json = await res.json();
       setTours(json.data);
@@ -627,49 +590,8 @@ export default function CatalogPage() {
   }, [filterCountry, filterSupplier]);
 
   useEffect(() => {
-    if (token) fetchTours();
-  }, [token, fetchTours]);
-
-  async function handleLogin() {
-    setLoginError("");
-    try {
-      const jwt = await loginWithKey(apiKeyInput.trim());
-      setStoredToken(jwt);
-      setToken(jwt);
-    } catch {
-      setLoginError("Invalid API key");
-    }
-  }
-
-  if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm">
-          <p className="text-xs font-bold text-slate-400 uppercase mb-1">Admin</p>
-          <h1 className="text-lg font-semibold mb-4">Catalog</h1>
-          {loginError && (
-            <p className="text-sm text-red-600 mb-3">{loginError}</p>
-          )}
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Admin API key"
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleLogin();
-            }}
-          />
-          <button
-            className="w-full bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700"
-            onClick={handleLogin}
-          >
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
+    fetchTours();
+  }, [fetchTours]);
 
   const countries = [
     ...new Set(tours.map((t) => t.country).filter(Boolean)),
@@ -686,10 +608,7 @@ export default function CatalogPage() {
         </div>
         <button
           className="text-sm text-gray-400 hover:text-gray-600"
-          onClick={() => {
-            localStorage.removeItem("acp_admin_token");
-            setToken(null);
-          }}
+          onClick={() => { clearAdminSecret(); window.location.href = "/login"; }}
         >
           Sign out
         </button>

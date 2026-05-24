@@ -7,20 +7,12 @@
 // POST /v1/acp/gate/gate3/approve    → approve Gate 3
 // POST /v1/acp/gate/gate3/reject     → reject Gate 3
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-}
 
 interface BlogDraft {
   draft_id: string;
@@ -216,7 +208,7 @@ function Gate3Panel({ runId, onAction }: { runId: string; onAction: () => void }
 
   useEffect(() => {
     if (!runId) return;
-    fetch(`${API_BASE}/v1/acp/gate/gate3/run/${runId}`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/gate/gate3/run/${runId}`, { headers: adminHeaders() })
       .then(r => r.ok ? r.json() : null).then(d => { if (d) setGate(d); }).catch(() => null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
@@ -227,7 +219,7 @@ function Gate3Panel({ runId, onAction }: { runId: string; onAction: () => void }
     try {
       const res = await fetch(`${API_BASE}/v1/acp/gate/gate3/${action}`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ run_id: runId, notes }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Failed");
@@ -286,7 +278,7 @@ function S4Content({ runId }: { runId: string }) {
 
   function load() {
     setLoading(true);
-    fetch(`${API_BASE}/v1/acp/s4/blog/drafts${runId ? `?run_id=${runId}` : ""}`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/s4/blog/drafts${runId ? `?run_id=${runId}` : ""}`, { headers: adminHeaders() })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => setDrafts(d.data || d.drafts || []))
       .catch(() => null)
@@ -354,7 +346,7 @@ function S4PageInner() {
   const [runId, setRunId] = useState(searchParams.get("run_id") || "");
 
   useEffect(() => {
-    fetch(`${API_BASE}/v1/acp/runs`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/runs`, { headers: adminHeaders() })
       .then(r => r.json()).then(d => setRuns(d.data || [])).catch(() => null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

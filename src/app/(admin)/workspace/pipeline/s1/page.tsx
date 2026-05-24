@@ -8,19 +8,11 @@
 // POST /v1/acp/gate/gate1/approve → approve Gate 1
 // POST /v1/acp/gate/gate1/reject  → reject Gate 1
 
+import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("acp_admin_token");
-}
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-}
 
 interface RawTour { id: string; aa_name: string; country: string; supplier: string; }
 interface Run {
@@ -55,8 +47,7 @@ function SseLog({ runId, onDone }: { runId: string; onDone: () => void }) {
 
   useEffect(() => {
     if (!runId) return;
-    const token = getToken();
-    const url = `${API_BASE}/acp/s1/run/${runId}/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    const url = `${API_BASE}/acp/s1/run/${runId}/stream`;
     const es = new EventSource(url);
     es.onmessage = (e) => {
       try {
@@ -86,7 +77,7 @@ function GatePanel({ runId }: { runId: string }) {
 
   useEffect(() => {
     if (!runId) return;
-    fetch(`${API_BASE}/v1/acp/gate/gate1/run/${runId}`, { headers: authHeaders() })
+    fetch(`${API_BASE}/v1/acp/gate/gate1/run/${runId}`, { headers: adminHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setGate(d); })
       .catch(() => null);
@@ -98,7 +89,7 @@ function GatePanel({ runId }: { runId: string }) {
     try {
       const res = await fetch(`${API_BASE}/v1/acp/gate/gate1/${action}`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({ run_id: runId, notes }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Failed");
@@ -180,8 +171,8 @@ export default function S1Page() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE}/acp/s1/tours`, { headers: authHeaders() }).then(r => r.json()),
-      fetch(`${API_BASE}/acp/s1/runs`, { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API_BASE}/acp/s1/tours`, { headers: adminHeaders() }).then(r => r.json()),
+      fetch(`${API_BASE}/acp/s1/runs`, { headers: adminHeaders() }).then(r => r.json()),
     ]).then(([t, r]) => {
       setTours(t.data || []);
       setRuns(r.data || []);
@@ -195,7 +186,7 @@ export default function S1Page() {
     try {
       const res = await fetch(`${API_BASE}/acp/s1/run`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: adminHeaders(),
         body: JSON.stringify({
           tour_ids: selected,
           run_config: { model_id: modelId, seo_mode: seoMode, language: "EN-US" },
@@ -212,7 +203,7 @@ export default function S1Page() {
 
   function onRunDone() {
     setRunning(false); setRunDone(true);
-    fetch(`${API_BASE}/acp/s1/runs`, { headers: authHeaders() })
+    fetch(`${API_BASE}/acp/s1/runs`, { headers: adminHeaders() })
       .then(r => r.json()).then(d => setRuns(d.data || [])).catch(() => null);
   }
 
