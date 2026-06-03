@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { getAdminSecret } from "@/lib/admin-auth";
 
 const NAV = [
@@ -26,6 +27,15 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       router.replace("/login");
     }
   }, [router]);
+
+  useEffect(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    Sentry.setContext("acp_session", {
+      area: "admin-workspace",
+      stage: segments[2] || segments[1] || null,
+      path: pathname,
+    });
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-aa-offwhite">

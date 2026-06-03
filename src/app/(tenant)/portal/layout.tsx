@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 
 const NAV = [
   { href: "/portal/competitors", label: "Competitors" },
@@ -9,6 +11,15 @@ const NAV = [
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  useEffect(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    Sentry.setContext("acp_session", {
+      area: "tenant-portal",
+      section: segments[1] || null,
+      path: pathname,
+    });
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
