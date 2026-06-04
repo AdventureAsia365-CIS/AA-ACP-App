@@ -1,7 +1,7 @@
 "use client";
 
 import { adminHeaders } from "@/lib/admin-auth";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api-cis.lumiguides.it.com";
@@ -38,6 +38,28 @@ interface BatchResult {
   rejected: number;
 }
 
+interface QualityScore {
+  hook_strength: number;
+  specificity: number;
+  cta_clarity: number;
+  brand_voice: number;
+  audience_fit: number;
+  average: number;
+  passed: boolean;
+}
+
+interface SocialContext {
+  quality_score: QualityScore | null;
+  rewrite_attempt: number;
+  validation_status: string | null;
+  validation_issues: string[] | null;
+  formula_used: string | null;
+  mode: string | null;
+  selected_angle: string | null;
+}
+
+type ContextCacheEntry = SocialContext | "loading" | null;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLATFORMS: { key: PlatformKey; label: string }[] = [
@@ -45,6 +67,14 @@ const PLATFORMS: { key: PlatformKey; label: string }[] = [
   { key: "facebook_post", label: "FB Post" },
   { key: "facebook_ad", label: "FB Ad" },
 ];
+
+const SCORE_FIELDS = [
+  "hook_strength",
+  "specificity",
+  "cta_clarity",
+  "brand_voice",
+  "audience_fit",
+] as const;
 
 function contentPreview(obj: Record<string, unknown> | null, maxLen = 50): string {
   if (!obj) return "—";
@@ -79,6 +109,159 @@ function hitlBadge(status: string | null): string {
   return styles[status ?? ""] ?? "bg-gray-100 text-gray-400";
 }
 
+// ── ContextPanel ──────────────────────────────────────────────────────────────
+
+function ContextPanel({
+  socialId,
+  platformKey,
+  cache,
+  expandedKey,
+  onToggle,
+  onFetch,
+}: {
+  socialId: string;
+  platformKey: string;
+  cache: Record<string, ContextCacheEntry>;
+  expandedKey: string | null;
+  onToggle: (key: string) => void;
+  onFetch: (id: string) => void;
+}) {
+  const key = `${socialId}:${platformKey}`;
+  const isExpanded = expandedKey === key;
+  const entry = cache[socialId];
+
+  function handleClick() {
+    if (!isExpanded) onFetch(socialId);
+    onToggle(key);
+  }
+
+  let badgeLabel: string;
+  let badgeClass: string;
+
+  if (entry === undefined) {
+    badgeLabel = isExpanded ? "Context ▴" : "Context ▾";
+    badgeClass = "bg-gray-100 text-gray-500 hover:bg-gray-200";
+  } else if (entry === "loading") {
+    badgeLabel = "Loading…";
+    badgeClass = "bg-gray-100 text-gray-400 animate-pulse";
+  } else if (entry === null || entry.quality_score === null) {
+    badgeLabel = isExpanded ? "No score ▴" : "No score ▾";
+    badgeClass = "bg-gray-100 text-gray-400 hover:bg-gray-200";
+  } else if (entry.quality_score.passed) {
+    const avg = entry.quality_score.average.toFixed(1);
+    badgeLabel = isExpanded ? `Score ${avg}/5 ✓ ▴` : `Score ${avg}/5 ✓ ▾`;
+    badgeClass = "bg-green-100 text-green-700 hover:bg-green-200";
+  } else {
+    const avg = entry.quality_score.average.toFixed(1);
+    badgeLabel = isExpanded ? `Score ${avg}/5 ✗ ▴` : `Score ${avg}/5 ✗ ▾`;
+    badgeClass = "bg-red-100 text-red-700 hover:bg-red-200";
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={handleClick}
+        className={`inline-flex px-2 py-0.5 rounded text-xs font-medium transition-colors ${badgeClass}`}
+      >
+        {badgeLabel}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-1.5 p-2.5 bg-white rounded border border-gray-200 text-xs space-y-1.5 shadow-sm">
+          {entry === "loading" && (
+            <p className="text-gray-400 animate-pulse">Loading context…</p>
+          )}
+
+          {(entry === null || entry === undefined) && entry !== "loading" && (
+            <p className="text-gray-400 italic">
+              Quality data not yet available. Will populate when S4.2 pipeline runs.
+            </p>
+          )}
+
+          {entry && entry !== "loading" && (
+            <>
+              {entry.quality_score ? (
+                <div>
+                  <p className="font-semibold text-gray-700 mb-1">Quality Score</p>
+                  {SCORE_FIELDS.map((k) => (
+                    <div
+                      key={k}
+                      className="flex justify-between py-0.5 border-b border-gray-100 last:border-0"
+                    >
+                      <span className="capitalize text-gray-500">
+                        {k.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-mono font-medium text-gray-700">
+                        {entry.quality_score![k]}/5
+                      </span>
+                    </div>
+                  ))}
+                  <div className="mt-1 font-semibold text-gray-800">
+                    Avg {entry.quality_score.average.toFixed(1)}/5 —{" "}
+                    <span
+                      className={
+                        entry.quality_score.passed
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {entry.quality_score.passed ? "Passed" : "Failed"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400 italic">
+                  Quality data not yet available. Will populate when S4.2 pipeline runs.
+                </p>
+              )}
+
+              <div>
+                <span className="font-semibold text-gray-700">Stage E: </span>
+                <span className="text-gray-600">
+                  {entry.validation_status ?? "—"}
+                </span>
+                {entry.validation_issues && entry.validation_issues.length > 0 && (
+                  <ul className="mt-0.5 list-disc list-inside text-gray-500 space-y-0.5">
+                    {entry.validation_issues.map((issue, i) => (
+                      <li key={i}>{issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <span className="font-semibold text-gray-700">Retries: </span>
+                <span className="text-gray-600">{entry.rewrite_attempt ?? 0}</span>
+              </div>
+
+              {entry.formula_used && (
+                <div>
+                  <span className="font-semibold text-gray-700">Formula: </span>
+                  <span className="text-gray-600">{entry.formula_used}</span>
+                  {entry.mode && (
+                    <span className="text-gray-400 ml-1">({entry.mode})</span>
+                  )}
+                </div>
+              )}
+
+              {entry.selected_angle && (
+                <div>
+                  <span className="font-semibold text-gray-700">Angle: </span>
+                  <span className="text-gray-600">
+                    {entry.selected_angle.length > 60
+                      ? entry.selected_angle.slice(0, 60) + "…"
+                      : entry.selected_angle}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SocialBatchReviewPage() {
@@ -90,6 +273,31 @@ export default function SocialBatchReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<BatchResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Context panel state
+  const [contextCache, setContextCache] = useState<Record<string, ContextCacheEntry>>({});
+  const [expandedContext, setExpandedContext] = useState<string | null>(null);
+  const fetchedRef = useRef<Set<string>>(new Set());
+
+  const fetchContext = useCallback(async (social_id: string) => {
+    if (fetchedRef.current.has(social_id)) return;
+    fetchedRef.current.add(social_id);
+    setContextCache((prev) => ({ ...prev, [social_id]: "loading" }));
+    try {
+      const res = await fetch(`${API_BASE}/v1/social/${social_id}/context`, {
+        headers: adminHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: SocialContext = await res.json();
+      setContextCache((prev) => ({ ...prev, [social_id]: data }));
+    } catch {
+      setContextCache((prev) => ({ ...prev, [social_id]: null }));
+    }
+  }, []);
+
+  function toggleContext(key: string) {
+    setExpandedContext((prev) => (prev === key ? null : key));
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -138,7 +346,11 @@ export default function SocialBatchReviewPage() {
     }));
   }
 
-  function handleCellToggle(socialId: string, platform: PlatformKey, status: "approved" | "rejected") {
+  function handleCellToggle(
+    socialId: string,
+    platform: PlatformKey,
+    status: "approved" | "rejected"
+  ) {
     const current = decisions[socialId]?.[platform]?.status;
     setCell(socialId, platform, { status: current === status ? null : status });
   }
@@ -152,7 +364,10 @@ export default function SocialBatchReviewPage() {
       const next = { ...prev };
       for (const row of visibleRows) {
         if (row.hitl_gate_3_social_status) continue;
-        const platforms: PlatformKey[] = platform === "all" ? ["tiktok", "facebook_post", "facebook_ad"] : [platform];
+        const platforms: PlatformKey[] =
+          platform === "all"
+            ? ["tiktok", "facebook_post", "facebook_ad"]
+            : [platform];
         next[row.social_id] = { ...next[row.social_id] };
         for (const p of platforms) {
           next[row.social_id][p] = { ...next[row.social_id][p], status: "approved" };
@@ -189,10 +404,11 @@ export default function SocialBatchReviewPage() {
       for (const { key } of PLATFORMS) {
         const cell = decisions[row.social_id]?.[key];
         if (!cell?.status) continue;
-        const entry: { social_id: string; status: "approved" | "rejected"; notes?: string } = {
-          social_id: row.social_id,
-          status: cell.status,
-        };
+        const entry: {
+          social_id: string;
+          status: "approved" | "rejected";
+          notes?: string;
+        } = { social_id: row.social_id, status: cell.status };
         if (cell.notes) entry.notes = cell.notes;
         out.push(entry);
       }
@@ -358,7 +574,9 @@ export default function SocialBatchReviewPage() {
                                 </p>
                                 <div className="flex gap-1 mb-1">
                                   <button
-                                    onClick={() => handleCellToggle(row.social_id, key, "approved")}
+                                    onClick={() =>
+                                      handleCellToggle(row.social_id, key, "approved")
+                                    }
                                     title={`Approve ${label}`}
                                     className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${
                                       cell.status === "approved"
@@ -369,7 +587,9 @@ export default function SocialBatchReviewPage() {
                                     ✓
                                   </button>
                                   <button
-                                    onClick={() => handleCellToggle(row.social_id, key, "rejected")}
+                                    onClick={() =>
+                                      handleCellToggle(row.social_id, key, "rejected")
+                                    }
                                     title={`Reject ${label}`}
                                     className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${
                                       cell.status === "rejected"
@@ -385,10 +605,20 @@ export default function SocialBatchReviewPage() {
                                     rows={2}
                                     placeholder="Reason (optional)"
                                     value={cell.notes}
-                                    onChange={(e) => handleNotes(row.social_id, key, e.target.value)}
+                                    onChange={(e) =>
+                                      handleNotes(row.social_id, key, e.target.value)
+                                    }
                                     className="w-full text-xs border border-gray-300 rounded px-2 py-1 mt-1 resize-none focus:outline-none focus:border-red-400"
                                   />
                                 )}
+                                <ContextPanel
+                                  socialId={row.social_id}
+                                  platformKey={key}
+                                  cache={contextCache}
+                                  expandedKey={expandedContext}
+                                  onToggle={toggleContext}
+                                  onFetch={fetchContext}
+                                />
                               </>
                             )}
                           </td>
@@ -424,7 +654,9 @@ export default function SocialBatchReviewPage() {
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
               }`}
             >
-              {submitting ? "Submitting…" : `Submit ${pendingDecisions > 0 ? `(${pendingDecisions})` : ""}`}
+              {submitting
+                ? "Submitting…"
+                : `Submit ${pendingDecisions > 0 ? `(${pendingDecisions})` : ""}`}
             </button>
           </div>
         </div>
