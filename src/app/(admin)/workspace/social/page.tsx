@@ -60,6 +60,21 @@ interface SocialContext {
 
 type ContextCacheEntry = SocialContext | "loading" | null;
 
+interface AngleEntry {
+  name: string;
+  why_it_works: string;
+  length_signal?: string;
+  style_signal?: string;
+}
+
+interface FullSocialRow {
+  mode: string | null;
+  angles_json: Record<string, unknown> | null;
+  selected_angle: string | null;
+}
+
+type RetryContextEntry = FullSocialRow | "loading" | null;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLATFORMS: { key: PlatformKey; label: string }[] = [
@@ -262,6 +277,84 @@ function ContextPanel({
   );
 }
 
+// ── AngleRetryPanel ───────────────────────────────────────────────────────────
+
+function AngleRetryPanel({
+  socialId,
+  context,
+  retrying,
+  result,
+  onRetry,
+}: {
+  socialId: string;
+  context: RetryContextEntry;
+  retrying: boolean;
+  result: "success" | "failed" | null;
+  onRetry: (index: number) => void;
+}) {
+  void socialId;
+
+  if (context === "loading") {
+    return <p className="text-xs text-gray-400 animate-pulse">Loading angles…</p>;
+  }
+  if (context === null) {
+    return <p className="text-xs text-gray-400 italic">Failed to load angle data.</p>;
+  }
+  if (context.mode !== "guided" || !context.angles_json) {
+    return (
+      <p className="text-xs text-gray-400 italic">
+        No angles stored (auto mode or pre-update tour)
+      </p>
+    );
+  }
+
+  const anglesJson = context.angles_json as Record<string, unknown> & { selected_index?: number };
+  const currentIndex = anglesJson.selected_index ?? null;
+  const availableIndices = [1, 2, 3].filter((i) => Boolean(anglesJson[`angle_${i}`]));
+
+  if (result === "success") {
+    return (
+      <p className="text-xs text-green-700 font-medium">
+        Retried — content updated, sent back for review
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {result === "failed" && (
+        <p className="text-xs text-red-600">Retry failed — try again</p>
+      )}
+      <p className="text-xs font-semibold text-gray-600 mb-1">Retry with a different angle:</p>
+      {availableIndices.map((i) => {
+        if (i === currentIndex) return null;
+        const angle = anglesJson[`angle_${i}`] as AngleEntry;
+        const preview =
+          angle.why_it_works.length > 80
+            ? angle.why_it_works.slice(0, 80) + "…"
+            : angle.why_it_works;
+        return (
+          <div key={i} className="p-1.5 bg-gray-50 rounded border border-gray-200">
+            <p className="text-xs font-medium text-gray-700">{angle.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{preview}</p>
+            <button
+              onClick={() => onRetry(i)}
+              disabled={retrying}
+              className={`mt-1 text-xs px-2 py-0.5 rounded border font-medium transition-colors ${
+                retrying
+                  ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                  : "border-amber-400 text-amber-700 hover:bg-amber-50"
+              }`}
+            >
+              {retrying ? "Retrying…" : `Retry with Angle ${i}`}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SocialBatchReviewPage() {
@@ -278,6 +371,13 @@ export default function SocialBatchReviewPage() {
   const [contextCache, setContextCache] = useState<Record<string, ContextCacheEntry>>({});
   const [expandedContext, setExpandedContext] = useState<string | null>(null);
   const fetchedRef = useRef<Set<string>>(new Set());
+
+  // Retry panel state
+  const [retryingCell, setRetryingCell] = useState<string | null>(null);
+  const [retryResult, setRetryResult] = useState<Record<string, "success" | "failed">>({});
+  const [expandedRetry, setExpandedRetry] = useState<string | null>(null);
+  const [retryContextCache, setRetryContextCache] = useState<Record<string, RetryContextEntry>>({});
+  const retryFetchedRef = useRef<Set<string>>(new Set());
 
   const fetchContext = useCallback(async (social_id: string) => {
     if (fetchedRef.current.has(social_id)) return;
@@ -297,6 +397,56 @@ export default function SocialBatchReviewPage() {
 
   function toggleContext(key: string) {
     setExpandedContext((prev) => (prev === key ? null : key));
+  }
+
+  const fetchRetryContext = useCallback(async (social_id: string) => {
+    if (retryFetchedRef.current.has(social_id)) return;
+    retryFetchedRef.current.add(social_id);
+    setRetryContextCache((prev) => ({ ...prev, [social_id]: "loading" }));
+    try {
+      const res = await fetch(`${API_BASE}/v1/acp/s4/social/${social_id}`, {
+        headers: adminHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRetryContextCache((prev) => ({
+        ...prev,
+        [social_id]: {
+          mode: data.mode ?? null,
+          angles_json: data.angles_json ?? null,
+          selected_angle: data.selected_angle ?? null,
+        },
+      }));
+    } catch {
+      setRetryContextCache((prev) => ({ ...prev, [social_id]: null }));
+    }
+  }, []);
+
+  async function handleAngleRetry(social_id: string, angle_index: number) {
+    setRetryingCell(social_id);
+    try {
+      const res = await fetch(`${API_BASE}/v1/acp/s4/social/${social_id}/retry-angle`, {
+        method: "POST",
+        headers: { ...adminHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ angle_index, reviewer_id: "trang" }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { detail?: string })?.detail ?? `HTTP ${res.status}`);
+      }
+      setRetryResult((prev) => ({ ...prev, [social_id]: "success" }));
+      retryFetchedRef.current.delete(social_id);
+      setRetryContextCache((prev) => {
+        const next = { ...prev };
+        delete next[social_id];
+        return next;
+      });
+      await fetchData();
+    } catch {
+      setRetryResult((prev) => ({ ...prev, [social_id]: "failed" }));
+    } finally {
+      setRetryingCell(null);
+    }
   }
 
   const fetchData = useCallback(async () => {
@@ -558,6 +708,34 @@ export default function SocialBatchReviewPage() {
                           >
                             {row.hitl_gate_3_social_status}
                           </span>
+                        )}
+                        {alreadyReviewed && row.hitl_gate_3_social_status === "rejected" && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (expandedRetry !== row.social_id) {
+                                  fetchRetryContext(row.social_id);
+                                }
+                                setExpandedRetry((prev) =>
+                                  prev === row.social_id ? null : row.social_id
+                                );
+                              }}
+                              className="mt-1.5 block text-xs px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium"
+                            >
+                              {expandedRetry === row.social_id ? "Retry ▴" : "Retry ▾"}
+                            </button>
+                            {expandedRetry === row.social_id && (
+                              <div className="mt-2 p-2 bg-white rounded border border-amber-200 shadow-sm">
+                                <AngleRetryPanel
+                                  socialId={row.social_id}
+                                  context={retryContextCache[row.social_id] ?? null}
+                                  retrying={retryingCell === row.social_id}
+                                  result={retryResult[row.social_id] ?? null}
+                                  onRetry={(idx) => handleAngleRetry(row.social_id, idx)}
+                                />
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
                       {PLATFORMS.map(({ key, label }) => {
