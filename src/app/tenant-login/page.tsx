@@ -30,7 +30,7 @@ export default function TenantLoginPage() {
       }
       const { access_token } = await res.json();
       sessionStorage.setItem("acp_tenant_token", access_token);
-      router.push("/workspace/pipeline");
+      router.push("/portal/competitors");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

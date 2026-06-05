@@ -19,3 +19,12 @@ export function adminHeaders(): HeadersInit {
   if (s) h["x-admin-secret"] = s;
   return h;
 }
+
+export function adminJsonHeaders(): HeadersInit {
+  return adminHeaders();
+}
+
+export function adminFormHeaders(): Record<string, string> {
+  const s = getAdminSecret();
+  return s ? { "x-admin-secret": s } : {};
+}

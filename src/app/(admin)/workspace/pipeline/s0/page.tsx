@@ -4,7 +4,7 @@
 // GET  /v1/pipeline/brand-identity → brand brief preview
 // POST /v1/pipeline/run         → parse Excel, trigger pipeline
 
-import { adminHeaders } from "@/lib/admin-auth";
+import { adminHeaders, adminFormHeaders } from "@/lib/admin-auth";
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 
@@ -117,7 +117,7 @@ export default function S0Page() {
       form.append("max_tours", "20");
       const res = await fetch(`${API_BASE}/v1/pipeline/run`, {
         method: "POST",
-        headers: adminHeaders() as Record<string, string>,
+        headers: adminFormHeaders(),
         body: form,
       });
       if (!res.ok) {

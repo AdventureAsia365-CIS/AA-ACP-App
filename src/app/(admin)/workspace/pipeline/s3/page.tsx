@@ -2,8 +2,8 @@
 // workspace/pipeline/s3/page.tsx — ACP S3 Content Calendar + Gate 2
 // GET  /v1/s3/runs/{run_id}          → S3 run data (calendar, ads plan)
 // GET  /v1/acp/runs                  → list all runs
-// POST /v1/hitl/gate2/{run_id}/approve → Gate 2 approve
-// POST /v1/hitl/gate2/{run_id}/reject  → Gate 2 reject
+// POST /v1/acp/gate/s3/approve       → Gate 2 approve
+// POST /v1/acp/gate/s3/reject        → Gate 2 reject
 
 import { adminHeaders } from "@/lib/admin-auth";
 import { useState, useEffect, Suspense } from "react";
@@ -86,10 +86,10 @@ function Gate2Panel({ run, onAction }: { run: S3Run; onAction: () => void }) {
     if (action === "reject" && !notes.trim()) { setError("Notes required when rejecting"); return; }
     setActing(true); setError("");
     try {
-      const res = await fetch(`${API_BASE}/v1/hitl/gate2/${run.run_id}/${action}`, {
+      const res = await fetch(`${API_BASE}/v1/acp/gate/s3/${action}`, {
         method: "POST",
         headers: adminHeaders(),
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ run_id: run.run_id, notes }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Failed");
       onAction();

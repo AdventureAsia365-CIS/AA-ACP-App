@@ -16,6 +16,9 @@ const NAV = [
   { href: "/workspace/s0/review",   label: "S0 Queue" },
   { href: "/workspace/catalog",     label: "Catalog" },
   { href: "/workspace/brand",       label: "Brand Brief" },
+  { href: "/workspace/social",      label: "Social Review" },
+  { href: "/workspace/s4/blog",     label: "S4 Blog" },
+  { href: "/workspace/rules",       label: "Rules" },
 ];
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
